@@ -17,6 +17,7 @@ urlpatterns = [
     path('assign-device/', assignDevice),
     path('return-device/', returnDevice),
 
+    path('device-assignments-list/', assignmentList),
     path('available-device/',availableDevice),
     path('device-logs/',deviceLog),
 ]

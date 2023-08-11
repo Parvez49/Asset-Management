@@ -52,8 +52,8 @@ class DeviceAssignment(models.Model):
 
 class DeviceConditionLog(models.Model):
     device_assignment = models.ForeignKey(DeviceAssignment, on_delete=models.CASCADE)
-    check_in_condition = models.TextField()
-    check_out_condition = models.TextField()
+    check_in_condition = models.CharField(max_length=100)
+    check_out_condition = models.CharField(max_length=100)
     log_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

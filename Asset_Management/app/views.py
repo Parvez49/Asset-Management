@@ -44,7 +44,7 @@ def addCompany(request):
         serializer = CompanySerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({"success":"Successfully added this company"})
         return Response(serializer.errors)
 
 
@@ -74,7 +74,7 @@ def createUser(request):
         serializer = UserDataSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=201)
+            return Response({"success":"User created"}, status=201)
         return Response(serializer.errors, status=400)
 
 
@@ -176,7 +176,7 @@ def addEmployee(request):
         serializer = EmployeeSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=201)
+            return Response({"success":"Successfully added"}, status=201)
         return Response(serializer.errors, status=400)
 
 @api_view(['GET'])
@@ -184,6 +184,8 @@ def employeeList(request):
     if request.method=="GET":
         token=request.COOKIES.get("logintoken")
         payload=authenticateUser(token)
+
+        # show all employees of company
         data=Employee.objects.filter(company=payload['company'])
         serializer=EmployeeSerializer(data,many=True)
         return Response(serializer.data)
@@ -218,7 +220,7 @@ def addDevice(request):
         serializer = DeviceSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=201)
+            return Response({"success":"Successfully added"}, status=201)
         return Response(serializer.errors, status=400)
     
 @api_view(['GET'])
@@ -226,6 +228,8 @@ def deviceList(request):
     if request.method=="GET":
         token=request.COOKIES.get("logintoken")
         payload=authenticateUser(token)
+
+        # show all devices
         data=Device.objects.filter(company=payload['company'])
         serializer=DeviceSerializer(data,many=True)
         return Response(serializer.data)
@@ -256,18 +260,17 @@ def deviceList(request):
 def assignDevice(request):
     if request.method == 'POST':
         token=request.COOKIES.get("logintoken")
-        print(token)
         payload=authenticateUser(token)
-
-        print(payload)
 
         request.data['company']=payload['company']
 
-        employee=Employee.objects.filter(employee_id=request.data['employee_id']).first()
+        # Check if the employee exists
+        employee=Employee.objects.filter(employee_id=request.data['employee_id'],company=payload['company']).first()
         if not employee:
             return Response({"error":"Employee not found"})
         
-        device=Device.objects.filter(serial_no=request.data['device_serial']).first()
+        # Check if the device exists
+        device=Device.objects.filter(serial_no=request.data['device_serial'],company=payload['company']).first()
         if not device:
             return Response({"error": "Device not found"})
         
@@ -278,6 +281,8 @@ def assignDevice(request):
         last_assignment = DeviceAssignment.objects.filter(device_id=device_id).order_by('-return_date').first()
         if last_assignment:
             last_log=DeviceConditionLog.objects.filter(device_assignment=last_assignment.pk).first()
+
+            # Check if the device damaged
             if last_log.check_out_condition=='bad':
                 return Response({"error":"Device Damaged!"})
             condition=last_log.check_out_condition
@@ -289,12 +294,12 @@ def assignDevice(request):
         request.data['employee']=employee.pk
         request.data['device']=device.pk
         serializer = DeviceAssignmentSerializer(data=request.data)
-        #device_id = 1
         if serializer.is_valid():
             obj=serializer.save()
+            # Update the device codition log with the return date
             log=DeviceConditionLog(device_assignment=obj,check_in_condition=condition,check_out_condition="")
             log.save()
-            return Response(serializer.data, status=201)
+            return Response({"success":"Assigned device"}, status=201)
         return Response(serializer.errors, status=400)
 
 
@@ -323,7 +328,7 @@ def returnDevice(request):
         token=request.COOKIES.get("logintoken")
         payload=authenticateUser(token)
 
-        request.data['company']=payload['company']
+        #request.data['company']=payload['company']
 
         # Check if the employee exists
         employee=Employee.objects.filter(employee_id=request.data['employee_id'],company=payload['company']).first()
@@ -355,27 +360,31 @@ def returnDevice(request):
 
 
 
+@api_view(['GET'])
+def assignmentList(request):
+    if request.method == 'GET':
+        # Retrieve the list of active (not returned) DeviceAssignment instances
+        active_assignments = DeviceAssignment.objects.filter(return_date__gt=timezone.now().date())
+        serializer = DeviceAssignmentSerializer(active_assignments, many=True)
+        return Response(serializer.data)
+
+
 
 @api_view(['GET'])
 def availableDevice(request):
     token=request.COOKIES.get("logintoken")
     payload=authenticateUser(token)
 
-
     filtered_assignments = DeviceAssignment.objects.filter(
             Q(return_date__lt=timezone.now()) | Q(deviceconditionlog__check_out_condition__icontains="bad")
         )
 
     # Retrieve the list of available devices
-    available_devices = Device.objects.filter(
-        company=payload['company']
-    ).exclude(
+    available_devices = Device.objects.filter(company=payload['company']).exclude(
         deviceassignment__in=filtered_assignments
     )
     serializer = DeviceSerializer(available_devices, many=True)
     return Response(serializer.data)
-
-
 
 
 @api_view(['GET'])
