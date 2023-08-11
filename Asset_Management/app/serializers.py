@@ -47,3 +47,12 @@ class DeviceAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeviceAssignment
         fields = '__all__'
+
+
+from rest_framework import serializers
+from .models import DeviceConditionLog
+
+class DeviceConditionLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceConditionLog
+        fields = '__all__'
